@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from sensor_msgs.msg import Imu, Image, MagneticField, LaserScan, PointCloud2
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Vector3Stamped, PoseWithCovarianceStamped, TwistWithCovarianceStamped
-from holoocean_interfaces.msg import DVLSensorRange, AgentCommand, AcousticBeaconSensor
+from holoocean_interfaces.msg import DVLSensorRange, AgentCommand, AcousticBeaconSensor, ProfilingSonar
 from scipy.spatial.transform import Rotation
 import numpy as np
 
@@ -555,9 +555,38 @@ class AcousticBeaconEncoder(SensorPublisher):
 
         return msg
 
+class ProfilingSonarEncoder(SensorPublisher):
+    # For Single Beam ProfilingSonar and GPUProfilingSonar
+    def __init__(self, sensor_dict):
+        super().__init__(sensor_dict)
+        self.message_type = ProfilingSonar
+        self.config = sensor_dict["configuration"]
 
+def encode(self, sensor_data):
+    sonar = np.asarray(sensor_data, dtype=np.float32)
+
+    if sonar.ndim != 2:
+        raise ValueError(f"Expected 2D sonar data, got {sonar.shape}")
+
+    # Log-scale intensities for visualization
+    image = np.log1p(9.0 * np.maximum(sonar, 0.0))
+    max_val = image.max()
+
+    if max_val > 0:
+        image = (image / max_val * 255).astype(np.uint8)
+    else:
+        image = np.zeros(sonar.shape, dtype=np.uint8)
+
+    msg = Image()
+    msg.header.frame_id = self.socket
+    msg.height, msg.width = image.shape
+    msg.encoding = "mono8"
+    msg.is_bigendian = 0
+    msg.step = msg.width
+    msg.data = image.tobytes()
+
+    return msg
 # Define other encoders similarly...
-
 
 encoders = {
     'IMUSensor': IMUEncoder,
@@ -578,6 +607,9 @@ encoders = {
     'CameraSensor': ImageEncoder,
     'RangeFinderSensor': LaserScanEncoder,
     'PoseSensor': PoseSensorEncoder,
-    'AcousticBeaconSensor': AcousticBeaconEncoder
+    'AcousticBeaconSensor': AcousticBeaconEncoder,
+    'ProfilingSonar': ProfilingSonarEncoder,
+    'GPUProfilingSonar': ProfilingSonarEncoder,
+    'RaycastProfilingSonar': ProfilingSonarEncoder
     # Add other sensor type encoders here...
 }
