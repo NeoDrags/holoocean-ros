@@ -240,7 +240,6 @@ class JoyToAgentCommand(Node):
                 for s in agent.get('sensors', [])
                 if s.get('sensor_type') == 'CameraSensor'
             ]
-
             ctrl.has_camera = len(camera_sensors) > 0
             ctrl.camera_sensor = camera_sensors[0] if camera_sensors else None
             self.controllers[name] = ctrl
