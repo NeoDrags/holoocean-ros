@@ -562,30 +562,23 @@ class ProfilingSonarEncoder(SensorPublisher):
         self.message_type = ProfilingSonar
         self.config = sensor_dict["configuration"]
 
-def encode(self, sensor_data):
-    sonar = np.asarray(sensor_data, dtype=np.float32)
+    def encode(self, sensor_data):
+        msg = self.message_type()
+        sonar = np.asarray(sensor_data, dtype=np.float32)
 
-    if sonar.ndim != 2:
-        raise ValueError(f"Expected 2D sonar data, got {sonar.shape}")
+        if sonar.ndim != 2:
+            raise ValueError(f"Expected 2D ProfilingSonar data, got {sonar.shape}")
 
-    # Log-scale intensities for visualization
-    image = np.log1p(9.0 * np.maximum(sonar, 0.0))
-    max_val = image.max()
+        msg.header.frame_id = self.socket
+        msg.bins_range = sonar.shape[0]
+        msg.bins_azimuth = sonar.shape[1]
+        msg.range_min = float(self.config["RangeMin"])
+        msg.range_max = float(self.config["RangeMax"])
+        msg.azimuth = float(self.config["Azimuth"])
+        msg.elevation = float(self.config["Elevation"])
+        msg.data = sonar.ravel(order="C").tolist()
 
-    if max_val > 0:
-        image = (image / max_val * 255).astype(np.uint8)
-    else:
-        image = np.zeros(sonar.shape, dtype=np.uint8)
-
-    msg = Image()
-    msg.header.frame_id = self.socket
-    msg.height, msg.width = image.shape
-    msg.encoding = "mono8"
-    msg.is_bigendian = 0
-    msg.step = msg.width
-    msg.data = image.tobytes()
-
-    return msg
+        return msg
 # Define other encoders similarly...
 
 encoders = {
